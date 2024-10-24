@@ -14,6 +14,8 @@ import {
 import { count, eq, ilike } from 'drizzle-orm';
 import { createInsertSchema } from 'drizzle-zod';
 
+import * as donations from './models/donations';
+
 export const db = drizzle(neon(process.env.POSTGRES_URL!));
 
 export const statusEnum = pgEnum('status', ['active', 'inactive', 'archived']);
@@ -29,6 +31,7 @@ export const products = pgTable('products', {
 });
 
 export type SelectProduct = typeof products.$inferSelect;
+
 export const insertProductSchema = createInsertSchema(products);
 
 export async function getProducts(
