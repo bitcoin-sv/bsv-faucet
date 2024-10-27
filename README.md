@@ -98,3 +98,91 @@ npm i @bsv/paymail
 ```
 
 You should now be able to access the application at http://localhost:3000.
+
+
+## Database Schema Management
+Maintaining a consistent PostgreSQL database schema is crucial for collaboration among all contributors.
+
+This section outlines the process for managing schema changes, creating migration scripts, and ensuring everyone is on the same page.
+
+#### Creating Migration Scripts
+
+Use a migration tool Knex.js
+
+To create a migration script, run the following command in your terminal:
+
+```sh
+bash
+npx knex migrate:make <migration_name>
+```
+
+Replace <migration_name> with a descriptive name reflecting the changes being made (e.g., create_users_table).
+
+#### Editing Migration Scripts
+
+Open the newly created migration file in the migrations directory. You’ll find two functions: up and down.
+In the up function, add the SQL commands to create or modify tables. In the down function, add commands to revert these changes. For example:
+
+
+```jv
+exports.up = function(knex) {
+  return knex.schema.createTable('users', function(table) {
+    table.increments('id').primary();
+    table.string('name');
+    table.string('email').unique();
+    table.timestamps(true, true);
+  });
+};
+
+exports.down = function(knex) {
+  return knex.schema.dropTable('users');
+};
+```
+
+#### Testing Migrations Locally
+
+Before pushing changes, run your migration scripts locally to ensure they work as expected. Use the following command:
+bash
+
+```sh
+npx knex migrate:latest
+```
+
+This will apply all pending migrations to your local database. You can revert changes using:
+```sh
+bash
+
+npx knex migrate:rollback
+```
+
+#### Creating a Pull Request
+
+After testing your migration scripts, create a pull request (PR) in the repository:
+Include a concise description of the schema changes.
+List the migration scripts included in the PR.
+Reference any discussions related to your changes.
+Tag other contributors for review.
+
+#### Merging Changes
+
+Once the PR is approved, merge the changes into the main branch. After merging, make sure to run the migration scripts on the shared development database hosted on Vercel.
+Applying Migrations in Vercel
+
+After merging your PR, ensure that the migration scripts are executed on the Vercel DB. You can run migrations by adding a script in your package.json:
+```sh
+Copy code
+"scripts": {
+  "migrate": "knex migrate:latest --env production"
+}
+```
+
+Run the migration command on Vercel using:
+```sh
+bash
+Copy code
+npm run migrate
+```
+
+#### Documenting Changes
+
+Update the README or project wiki to reflect any changes to the schema, including new tables, fields, or relationships.
