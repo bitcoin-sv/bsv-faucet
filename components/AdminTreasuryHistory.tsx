@@ -8,7 +8,7 @@ import { Alert, AlertTitle, AlertDescription } from './ui/alert'
 import { FileWarningIcon, RefreshCcwIcon } from 'lucide-react'
 
 async function getDepositHistory(): Promise<DepositTransaction[]> {
-  const res = await fetch('http://localhost:3001/api/deposit-history', { cache: 'no-store' })
+  const res = await fetch('/api/deposit-history', { cache: 'no-store' })
   if (!res.ok) {
     throw new Error('Failed to fetch deposit history')
   }

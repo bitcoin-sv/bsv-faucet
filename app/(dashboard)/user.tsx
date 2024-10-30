@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { auth, signOut } from '@/lib/auth';
+import { currentUser } from '@clerk/nextjs/server';
 import Image from 'next/image';
 import {
   DropdownMenu,
@@ -10,10 +10,10 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
+import SignOutButton from './sign-out-button';
 
 export async function User() {
-  let session = await auth();
-  let user = session?.user;
+  const user = await currentUser();
 
   return (
     <DropdownMenu>
@@ -24,7 +24,7 @@ export async function User() {
           className="overflow-hidden rounded-full"
         >
           <Image
-            src={user?.image ?? '/placeholder-user.jpg'}
+            src={user?.imageUrl ?? '/placeholder-user.jpg'}
             width={36}
             height={36}
             alt="Avatar"
@@ -40,18 +40,11 @@ export async function User() {
         <DropdownMenuSeparator />
         {user ? (
           <DropdownMenuItem>
-            <form
-              action={async () => {
-                'use server';
-                await signOut();
-              }}
-            >
-              <button type="submit">Sign Out</button>
-            </form>
+            <SignOutButton />
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem>
-            <Link href="/login">Sign In</Link>
+            <Link href="/sign-in">Sign In</Link>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
