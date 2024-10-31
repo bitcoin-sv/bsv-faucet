@@ -36,6 +36,7 @@ import { SearchInput } from './search';
 
 import DbBreadcrumb from '@/components/ui/DbBreadcrumb';
 
+export const dynamic = 'force-dynamic';
 
 export default function DashboardLayout({
   children
@@ -179,3 +180,4 @@ function DashboardBreadcrumb() {
     </div>
   );
 }
+

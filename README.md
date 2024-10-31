@@ -74,9 +74,9 @@ CREATE TABLE products (
   available_at TIMESTAMP NOT NULL
 );
 ```
-Then, uncomment app/api/seed.ts and hit http://localhost:3000/api/seed to seed the database with products.
+Then, uncomment app/api/seed.ts and hit http://localhost:3000/api/seed to seed the database
 
-Next, copy the .env.example file to .env and update the values. Follow the instructions in the .env.example file to set up your GitHub OAuth application.
+Next, copy the .env.example file to .env and update the values. Follow the instructions in the .env.example file to set up your env variables.
 
 ```sh
 npm i -g vercel
@@ -94,7 +94,6 @@ pnpm dev
 You'll need the the following BSV Libraries:
 ```sh
 npm i @bsv/sdk
-npm i @bsv/paymail
 ```
 
 You should now be able to access the application at http://localhost:3000.

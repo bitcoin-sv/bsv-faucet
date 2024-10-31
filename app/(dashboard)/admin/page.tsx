@@ -1,17 +1,11 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Bitcoin, AlertCircle } from 'lucide-react'
-import AdminTreasuryHistory from '@/components/AdminTreasuryHistory'
-
-const fetchBalance = async () => {
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  return Math.random() * 20
-}
+import AdminTreasuryHistory from '@/components/adminTreasuryHistory/AdminTreasuryHistory';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
 
 export default function AdminPage() {
   const [balance, setBalance] = useState<number | null>(null)
