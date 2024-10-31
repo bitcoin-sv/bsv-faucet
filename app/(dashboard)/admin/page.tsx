@@ -1,4 +1,6 @@
+"use client"
 import AdminTreasuryHistory from '@/components/adminTreasuryHistory/AdminTreasuryHistory';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Card,
   CardContent,
@@ -6,6 +8,14 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AlertCircle, Bitcoin } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+const fetchBalance = async () => {
+  await new Promise(resolve => setTimeout(resolve, 1000))
+  return Math.random() * 20
+}
 
 export default function AdminPage() {
   const [balance, setBalance] = useState<number | null>(null)
@@ -25,7 +35,7 @@ export default function AdminPage() {
   const isLowBalance = balance !== null && balance < 10
 
   return (
-    <div className="container mx-auto p-4 space-y-4">
+    <section className='space-y-10'>
       {isLowBalance && (
         <Alert variant="destructive" className="border-red-400 bg-red-400/10 text-red-400">
           <AlertCircle className="h-4 w-4" />
@@ -74,20 +84,9 @@ export default function AdminPage() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            Treasury - Deposit History
-            <Badge variant="outline" className="ml-2">
-              Coming Soon
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            Transaction history will be displayed here in a future update.
-          </p>
-        </CardContent>
+        {/* <AdminTreasuryHistory /> */}
       </Card>
-    </div>
+    </section>
+
   )
 }
