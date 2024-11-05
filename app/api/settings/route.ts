@@ -24,7 +24,6 @@ const DeleteAccountSchema = z.object({
   password: z.string().min(8)
 });
 
-
 export async function POST(request: NextRequest) {
   const user = await currentUser();
 
@@ -46,9 +45,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, userRecord.password);
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      userRecord.password
+    );
     if (!isCurrentPasswordValid) {
-      return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Current password is incorrect' },
+        { status: 400 }
+      );
     }
 
     const saltRounds = 10;
@@ -63,13 +68,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Password updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
     }
     console.error('Error changing password:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
-
 
 // PUT function to update user data
 export async function PUT(request: NextRequest) {
@@ -131,7 +141,7 @@ export async function GET(request: NextRequest) {
         username: users.username,
         email: users.email,
         theme: users.theme,
-        role: users.role,
+        role: users.role
       })
       .from(users)
       .where(eq(users.userId, user.id))
@@ -144,7 +154,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       message: 'User data retrieved successfully',
-      data: userData,
+      data: userData
     });
   } catch (error) {
     console.error('Error fetching user data:', error);
@@ -154,7 +164,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 
 //Patch
 export async function PATCH(request: NextRequest) {
@@ -177,10 +186,16 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ message: 'Theme updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
     }
     console.error('Error updating theme:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -208,7 +223,10 @@ export async function DELETE(request: NextRequest) {
 
     const isPasswordValid = await bcrypt.compare(password, userRecord.password);
     if (!isPasswordValid) {
-      return NextResponse.json({ error: 'Incorrect password' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Incorrect password' },
+        { status: 400 }
+      );
     }
 
     await db.delete(users).where(eq(users.userId, user.id)).execute();
@@ -216,9 +234,15 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ message: 'Account deleted successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
     }
     console.error('Error deleting account:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 }
