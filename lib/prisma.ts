@@ -2,7 +2,7 @@ import {
   PrismaClient,
   User as PrismaUser,
   Transaction as PrismaTransaction
-} from '@/prisma/generated/client';
+} from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
@@ -42,15 +42,5 @@ export const fetchTransactions = async (user: User, take?: number) => {
       ...transaction,
       beefTx: { txid: beefTx.txid }
     };
-  });
-};
-
-export const fetchUsers = async (user: User) => {
-  if (user.role !== 'admin') {
-    return [];
-  }
-  return prisma.user.findMany({
-    where: {},
-    orderBy: { createdAt: 'desc' }
   });
 };

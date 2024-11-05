@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated/client"
 }
 
 datasource db {
@@ -17,9 +16,6 @@ model User {
   role         Role
   password     String
   theme        Theme         @default(light)
-  withdrawn    BigInt        @default(0)
-  paused       Boolean       @default(false)
-  createdAt    DateTime      @default(now())
   transactions Transaction[]
 }
 
