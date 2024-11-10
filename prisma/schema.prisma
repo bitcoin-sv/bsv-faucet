@@ -23,7 +23,6 @@ model User {
   lastActive    DateTime       @default(now())
   walletAddresses WalletAddress[]
   transactions  Transaction[]
-  requests      Request[]
 }
 
 model WalletAddress {
@@ -47,8 +46,6 @@ model Transaction {
   amount      BigInt
   userId      String?
   user        User?    @relation(fields: [userId], references: [userId])
-  request     Request? @relation(fields: [requestId], references: [id])
-  requestId   Int?
 
   @@index([userId, date])
   @@index([txid])
@@ -76,19 +73,8 @@ enum Theme {
   dark
 }
 
-enum RequestType {
-  withdrawal
-  deposit
-  other
-}
 
-enum RequestStatus {
-  pending
-  processing
-  completed
-  failed
-  cancelled
-}
+
 
 enum WalletType {
   master
