@@ -73,9 +73,6 @@ enum Theme {
   dark
 }
 
-
-
-
 enum WalletType {
   master
   hot
