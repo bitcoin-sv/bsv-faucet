@@ -150,6 +150,15 @@ export const createAndSendTransaction = async (
       }
     });
 
+    await prisma.user.update({
+      where: {userId: userId},
+      data: {
+        withdrawn: {
+          increment: BigInt(amount)
+        }
+      }
+    });
+
     return txid;
   } catch (error) {
     console.error(
