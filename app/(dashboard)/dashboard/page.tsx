@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { Timer, Wallet, History, AlertTriangle } from 'lucide-react';
+import { Timer, Wallet, History, AlertTriangle, LoaderIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AdminWalletAddress } from '@/lib/utils';
@@ -57,19 +57,23 @@ export default function DashboardPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [balanceResponse, transactionsResponse] = await Promise.all([
+        const [balanceResponse, transactionsResponse, remainingTimeResponse] = await Promise.all([
           fetch('/api/wallet/balance'),
-          fetch(`/api/transactions/users`)
+          fetch(`/api/transactions/users`),
+          fetch(`/api/users/remaining-time?userId=${user?.id}`)
         ]);
 
-        if (!balanceResponse.ok || !transactionsResponse.ok) {
+        if (!balanceResponse.ok || !transactionsResponse.ok || !remainingTimeResponse.ok) {
           throw new Error('Failed to fetch data');
         }
 
         const balanceData = await balanceResponse.json();
         const transactionsData = await transactionsResponse.json();
+        const { remainingTime } = await remainingTimeResponse.json();
+
         setFaucetBalance(balanceData.balance);
         setTransactions(transactionsData);
+        setRemainingTime(remainingTime);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast({
@@ -89,18 +93,14 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!address) return;
-    const timeLeft = localStorage.getItem(`nextRequestTime_${address}`);
-    if (timeLeft) {
-      setRemainingTime(Math.max(0, parseInt(timeLeft) - Date.now()));
-    }
+    if(remainingTime <= 0) return;
 
     const timer = setInterval(() => {
-      setRemainingTime((prev) => Math.max(0, prev - 1000));
-    }, 1000);
+      setRemainingTime((prevtime) => Math.max(0, prevtime - 1000));
+    }, 1000)
 
-    return () => clearInterval(timer);
-  }, [address]);
+    return () => clearInterval(timer)
+  }, [remainingTime]);
 
   const isValidBSVAddress = (addr: string) =>
     /^[mn2][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(addr);
@@ -146,11 +146,13 @@ export default function DashboardPage() {
         throw new Error(errorData.error || 'Failed to send transaction');
       }
 
-      const { txid } = await response.json();
+      const { txid, remainingTime: newRemainingTime } = await response.json();
 
       setSuccess(
         `Successfully sent ${amount} satoshis to ${address}. TxID: ${txid}`
       );
+
+      setRemainingTime(newRemainingTime)
 
       // Refresh data after successful transaction
       const [balanceResponse, transactionsResponse] = await Promise.all([
@@ -165,13 +167,6 @@ export default function DashboardPage() {
         setTransactions(transactionsData);
       }
 
-      // Set cooldown period for the wallet address
-      const nextRequestTime = Date.now() + 24 * 60 * 60 * 1000;
-      localStorage.setItem(
-        `nextRequestTime_${address}`,
-        nextRequestTime.toString()
-      );
-      setRemainingTime(24 * 60 * 60 * 1000);
     } catch (err: any) {
       setError(`Failed to process request: ${err.message}`);
       console.error('Transaction error:', err);
@@ -185,7 +180,8 @@ export default function DashboardPage() {
   const formatTimeRemaining = (time: number) => {
     const hours = Math.floor(time / (60 * 60 * 1000));
     const minutes = Math.floor((time % (60 * 60 * 1000)) / (60 * 1000));
-    return `${hours}h ${minutes}m`;
+    const seconds = Math.floor((time % (60 * 1000)) / 1000);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -238,11 +234,15 @@ export default function DashboardPage() {
             )}
 
             <Button
-              className="w-full"
+              className="w-full flex items-center justify-center"
               onClick={handleRequest}
               disabled={remainingTime > 0 || isLoading}
             >
-              Request BSV
+              {isLoading ? (
+                <LoaderIcon className="animate-spin h-5 w-5 mr-2" />
+              ) : (
+                'Request BSV'
+              )}
             </Button>
           </div>
 
