@@ -24,7 +24,6 @@ const LatestTransactionsTable = ({
         <TableHead>Beef Tx</TableHead>
         <TableHead>Tx Type</TableHead>
         <TableHead>Amount</TableHead>
-        <TableHead>Status</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
