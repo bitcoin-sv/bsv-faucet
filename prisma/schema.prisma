@@ -42,6 +42,7 @@ model Transaction {
   vout        Json
   txType      String
   spentStatus Boolean  @default(false)
+  outputs     Output[]
   testnetFlag Boolean  @default(true)
   amount      BigInt
   userId      String?
@@ -51,6 +52,15 @@ model Transaction {
   @@index([txid])
 }
 
+model Output {
+  id            Int         @id @default(autoincrement())
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  transactionId Int
+  voutIndex     Int
+  address       String
+  amount        BigInt
+  spentStatus   Boolean     @default(false)
+}
 
 
 model Wallet {
