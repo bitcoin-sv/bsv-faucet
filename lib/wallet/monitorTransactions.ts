@@ -1,8 +1,8 @@
 import cron from 'node-cron';
 import { getUTXOs, getRawTransaction } from './regest';
-import { PrismaClient } from '@prisma/client';
 import { PrivateKey, Transaction, P2PKH, LockingScript } from '@bsv/sdk';
 import bs58check from 'bs58check';
+import { PrismaClient } from '@/prisma/generated/client';
 
 const prisma = new PrismaClient();
 
