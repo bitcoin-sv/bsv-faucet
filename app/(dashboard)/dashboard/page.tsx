@@ -20,7 +20,13 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { Timer, Wallet, History, AlertTriangle, LoaderIcon } from 'lucide-react';
+import {
+  Timer,
+  Wallet,
+  History,
+  AlertTriangle,
+  LoaderIcon
+} from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AdminWalletAddress } from '@/lib/utils';
@@ -41,6 +47,8 @@ export default function DashboardPage() {
   const [amount, setAmount] = useState('');
   const [captchaValue, setCaptchaValue] = useState('');
   const [remainingTime, setRemainingTime] = useState(0);
+  const [totalWithdrawn, setTotalWithdrawn] = useState(0);
+
   const [faucetBalance, setFaucetBalance] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Transaction[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +56,9 @@ export default function DashboardPage() {
   const [success, setSuccess] = useState('');
 
   const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
-  const MAX_WITHDRAWAL = 100000; // 0.001 BSV in satoshis
+  const MAX_DAILY_WITHDRAWAL = parseInt(
+    process.env.NEXT_PUBLIC_MAX_DAILY_WITHDRAWAL || '100000'
+  );
   const treasuryWIF = process.env.NEXT_PUBLIC_TREASURY_WALLET_WIF;
 
   const adminWalletAddress = AdminWalletAddress();
@@ -57,23 +67,28 @@ export default function DashboardPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [balanceResponse, transactionsResponse, remainingTimeResponse] = await Promise.all([
-          fetch('/api/wallet/balance'),
-          fetch(`/api/transactions/users`),
-          fetch(`/api/users/remaining-time?userId=${user?.id}`)
-        ]);
-
-        if (!balanceResponse.ok || !transactionsResponse.ok || !remainingTimeResponse.ok) {
+        const [balanceResponse, transactionsResponse, remainingTimeResponse] =
+          await Promise.all([
+            fetch('/api/wallet/balance'),
+            fetch(`/api/transactions/users`),
+            fetch(`/api/users/remaining-time?userId=${user?.id}`)
+          ]);
+        if (
+          !balanceResponse.ok ||
+          !transactionsResponse.ok ||
+          !remainingTimeResponse.ok
+        ) {
           throw new Error('Failed to fetch data');
         }
 
         const balanceData = await balanceResponse.json();
         const transactionsData = await transactionsResponse.json();
-        const { remainingTime } = await remainingTimeResponse.json();
-
+        const { remainingTime, totalAmountWithdrawn, message } =
+          await remainingTimeResponse.json();
         setFaucetBalance(balanceData.balance);
         setTransactions(transactionsData);
         setRemainingTime(remainingTime);
+        setTotalWithdrawn(totalAmountWithdrawn)
       } catch (error) {
         console.error('Error fetching data:', error);
         toast({
@@ -93,13 +108,13 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if(remainingTime <= 0) return;
+    if (remainingTime <= 0) return;
 
     const timer = setInterval(() => {
       setRemainingTime((prevtime) => Math.max(0, prevtime - 1000));
-    }, 1000)
+    }, 1000);
 
-    return () => clearInterval(timer)
+    return () => clearInterval(timer);
   }, [remainingTime]);
 
   const isValidBSVAddress = (addr: string) =>
@@ -108,8 +123,12 @@ export default function DashboardPage() {
   const validateForm = () => {
     if (!user) return 'You must be logged in to request BSV';
     if (!isValidBSVAddress(address)) return 'Invalid BSV testnet address';
-    if (!amount || parseInt(amount) <= 0 || parseInt(amount) > MAX_WITHDRAWAL)
-      return `Invalid amount (max ${MAX_WITHDRAWAL} satoshis)`;
+    if (
+      !amount ||
+      parseInt(amount) <= 0 ||
+      parseInt(amount) > MAX_DAILY_WITHDRAWAL
+    )
+      return `Invalid amount (max ${MAX_DAILY_WITHDRAWAL} satoshis)`;
     if (!captchaValue) return 'Please complete the captcha';
     if (remainingTime > 0)
       return 'Please wait for the cooldown period to end for this address';
@@ -119,12 +138,12 @@ export default function DashboardPage() {
   const handleRequest = async () => {
     setError('');
     setSuccess('');
-    setIsLoading(true)
+    setIsLoading(true);
 
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
-      setIsLoading(false)
+      setIsLoading(false);
       return;
     }
 
@@ -145,7 +164,7 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        setIsLoading(false)
+        setIsLoading(false);
         throw new Error(errorData.error || 'Failed to send transaction');
       }
 
@@ -155,7 +174,7 @@ export default function DashboardPage() {
         `Successfully sent ${amount} satoshis to ${address}. TxID: ${txid}`
       );
 
-      setRemainingTime(newRemainingTime)
+      setRemainingTime(newRemainingTime);
 
       // Refresh data after successful transaction
       const [balanceResponse, transactionsResponse] = await Promise.all([
@@ -168,15 +187,12 @@ export default function DashboardPage() {
         const transactionsData = await transactionsResponse.json();
         setFaucetBalance(balanceData.balance);
         setTransactions(transactionsData);
-        setIsLoading(false)
-
+        setIsLoading(false);
       }
-
     } catch (err: any) {
       setError(`Failed to process request: ${err.message}`);
       console.error('Transaction error:', err);
-      setIsLoading(false)
-
+      setIsLoading(false);
     }
   };
 
@@ -219,10 +235,10 @@ export default function DashboardPage() {
             />
             <Input
               type="number"
-              placeholder={`Amount (in satoshis, max ${MAX_WITHDRAWAL})`}
+              placeholder={`Amount (in satoshis, max ${MAX_DAILY_WITHDRAWAL})`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              max={MAX_WITHDRAWAL.toString()}
+              max={MAX_DAILY_WITHDRAWAL.toString()}
             />
 
             <ReCAPTCHA
@@ -230,11 +246,11 @@ export default function DashboardPage() {
               onChange={onCaptchaChange}
             />
 
-            {remainingTime > 0 && (
+            {totalWithdrawn > MAX_DAILY_WITHDRAWAL && (
               <div className="flex items-center space-x-2 text-yellow-600">
                 <Timer className="h-5 w-5" />
                 <span>
-                  Next request available for this address in:{' '}
+                  Next request available for this address in:
                   {formatTimeRemaining(remainingTime)}
                 </span>
               </div>
@@ -243,8 +259,8 @@ export default function DashboardPage() {
             <Button
               className="w-full flex items-center justify-center"
               onClick={handleRequest}
-              disabled={remainingTime > 0 || isLoading}
-            >
+              disabled={totalWithdrawn > MAX_DAILY_WITHDRAWAL || isLoading}
+              >
               {isLoading ? (
                 <LoaderIcon className="animate-spin h-5 w-5 mr-2" />
               ) : (
