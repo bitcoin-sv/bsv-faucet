@@ -22,6 +22,7 @@ interface Transaction {
   description: string;
   timestamp: string;
   beefTx: string;
+  vout: number;
 }
 
 interface TreasuryData {
@@ -32,7 +33,7 @@ interface TreasuryData {
   recentTransactions: Transaction[];
 }
 
-const AdminTreasury = () => {
+export default function AdminTreasury() {
   const [treasuryData, setTreasuryData] = useState<TreasuryData>({
     balanceBSV: 0,
     balanceSatoshis: 0,
@@ -44,55 +45,65 @@ const AdminTreasury = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-  type DepositTransaction = {
-    date: string;
-    txid: string;
-    beefTx: string;
-    vout: number;
-    txType: 'deposit';
-    amount: number;
+  const fetchBalance = async () => {
+    const balanceResponse = await fetch('/api/wallet/balance');
+    if (!balanceResponse.ok) {
+      throw new Error('Failed to fetch balance');
+    }
+    const balanceData = await balanceResponse.json();
+    return balanceData.balance;
   };
-  
+
+  const fetchTransactions = async () => {
+    const transactionsResponse = await fetch('/api/transactions');
+    if (!transactionsResponse.ok) {
+      throw new Error('Failed to fetch transactions');
+    }
+    return await transactionsResponse.json();
+  };
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Fetch balance first
+      const balanceSatoshis = await fetchBalance();
+      const balanceBSV = balanceSatoshis / 100000000; // Convert to BSV
+
+      // Fetch transactions
+      // const transactions = await fetchTransactions();
+
+      // // Map transactions to a simpler format
+      // const mappedTransactions = transactions.map((tx: any) => ({
+      //   id: tx.txid,
+      //   type: tx.txType,
+      //   amount: tx.amount.toString(),
+      //   description: `Transaction ID: ${tx.txid}`,
+      //   timestamp: tx.date,
+      //   beefTx: tx.beefTx,
+      //   vout: tx.vout
+      // }));
+
+      setTreasuryData({
+        balanceBSV,
+        balanceSatoshis,
+        lowBalanceThreshold: 10,
+        isLowBalance: balanceBSV < 10,
+        recentTransactions: []
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch treasury data');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Fetch deposit history
-        const historyResponse = await fetch('/api/transactions');
-        if (!historyResponse.ok) {
-          throw new Error('Failed to fetch deposit history');
-        }
-        const transactions: DepositTransaction[] = await historyResponse.json();
-
-        // Calculate total balance from transactions
-        const totalSatoshis = transactions.reduce((sum, tx) => sum + tx.amount, 0);
-        const balanceBSV = totalSatoshis / 100000000;
-
-        setTreasuryData({
-          balanceBSV,
-          balanceSatoshis: totalSatoshis,
-          lowBalanceThreshold: 10,
-          isLowBalance: balanceBSV < 10,
-          recentTransactions: transactions.map(tx => ({
-            id: tx.txid,
-            type: tx.txType,
-            amount: tx.amount.toString(),
-            description: `BeefTx: ${tx.beefTx}, Vout: ${tx.vout}`,
-            timestamp: tx.date,
-            beefTx: tx.beefTx
-          }))
-        });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch treasury data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchData(); // Initial fetch on mount
     const interval = setInterval(fetchData, 5 * 60 * 1000); // Refresh every 5 minutes
-    return () => clearInterval(interval);
+
+    return () => clearInterval(interval); // Cleanup on component unmount
   }, []);
 
   const formatSatoshisToBSV = (satoshis: number) => {
@@ -166,92 +177,6 @@ const AdminTreasury = () => {
         </CardContent>
       </Card>
 
-      {/* <Card>
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {treasuryData.recentTransactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div>
-                  <div className="font-medium">
-                    {tx.type === 'deposit' ? '+ ' : '- '}
-                    {parseFloat(tx.amount).toFixed(8)} BSV
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {tx.description}
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(tx.timestamp).toLocaleString()}
-                  </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedTransaction(tx)}>
-                        Details
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle>Transaction Details</DialogTitle>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="beefId" className="text-right">
-                            Beef ID
-                          </Label>
-                          <Input
-                            id="beefId"
-                            value={selectedTransaction?.beefTx || ''}
-                            className="col-span-3"
-                            readOnly
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="txId" className="text-right">
-                            Transaction ID
-                          </Label>
-                          <Input
-                            id="txId"
-                            value={selectedTransaction?.id || ''}
-                            className="col-span-3"
-                            readOnly
-                          />
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyToClipboard(selectedTransaction?.beefTx || '')}
-                        >
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copy Beef ID
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyToClipboard(selectedTransaction?.id || '')}
-                        >
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copy Transaction ID
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card> */}
     </div>
   );
-};
-
-export default AdminTreasury;
+}

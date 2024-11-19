@@ -9,26 +9,21 @@ const startSpentStatusMonitor = async () => {
     try {
       console.log('Starting spent status update process...');
 
-      const unspentTransactions = await prisma.transaction.findMany({
+      const unspentOutputs = await prisma.output.findMany({
         where: { spentStatus: false },
-        select: { id: true, txid: true, vout: true }
+        include: { transaction: true }
       });
 
-      for (const transaction of unspentTransactions) {
-        if (transaction.vout && Array.isArray(transaction.vout)) {
-          const transactionUpdated = await checkAndUpdateTransactionStatus({
-            ...transaction,
-            vout: transaction.vout as any[], 
-          });
-          if (transactionUpdated) {
-            console.log(`Marked transaction ${transaction.txid} as spent`);
-          }
-        } else {
-          console.warn(`Skipping transaction ${transaction.txid}: 'vout' is not an array`);
+      for (const output of unspentOutputs) {
+        console.log(output)
+        const isUnspent = await checkOutputStatus(output);
+        if (!isUnspent) {
+          await markOutputAsSpent(output);
+          console.log(`Marked output ${output.id} of transaction ${output.transaction.txid} as spent`);
         }
       }
 
-      console.log('Finished updating spent status');
+      console.log('Finished updating spent status', {unspentOutputs});
     } catch (error) {
       console.error('Error updating spent status:', error);
     }
@@ -38,27 +33,42 @@ const startSpentStatusMonitor = async () => {
   await updateSpentStatus(); 
 };
 
-const checkAndUpdateTransactionStatus = async (transaction: { id: number; txid: string; vout: any[] }) => {
+const checkOutputStatus = async (output: any) => {
   try {
-    for (const [index, output] of Array.from(transaction.vout.entries())) {
-      const utxos = await getUTXOs(output.address);
-      const isUnspent = utxos.some(
-        (utxo: { tx_hash: any; tx_pos: any }) =>
-          utxo.tx_hash === transaction.txid && utxo.tx_pos === index
-      );
+    const utxos = await getUTXOs(output.address);
+    return utxos.some(
+      (utxo: { tx_hash: string; tx_pos: number }) =>
+        utxo.tx_hash === output.transaction.txid && utxo.tx_pos === output.voutIndex
+    );
+  } catch (error) {
+    console.error(`Error checking output status:`, error);
+    return true;
+  }
+};
 
-      if (!isUnspent) {
-        await prisma.transaction.update({
-          where: { id: transaction.id },
-          data: { spentStatus: true }
-        });
-        return true;
+const markOutputAsSpent = async (output: any) => {
+  try {
+    await prisma.output.update({
+      where: { id: output.id },
+      data: { spentStatus: true }
+    });
+
+    const remainingUnspentOutputs = await prisma.output.count({
+      where: { 
+        transactionId: output.transactionId,
+        spentStatus: false
       }
+    });
+
+    if (remainingUnspentOutputs === 0) {
+      await prisma.transaction.update({
+        where: { id: output.transactionId },
+        data: { spentStatus: true }
+      });
     }
   } catch (error) {
-    console.error(`Error updating transaction ${transaction.txid}:`, error);
+    console.error(`Error marking output as spent:`, error);
   }
-  return false; 
 };
 
 export const startSpentMonitor = async () => {

@@ -9,7 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +24,7 @@ interface Transaction {
     txid: string;
     vout: number;
     value: number;
-  };
+  } | null;
   vout: Array<{
     address: string;
     satoshis: number;
@@ -47,12 +47,16 @@ const TransactionSkeleton = () => (
   </div>
 );
 
+const safelyGetNestedProp = (obj: any, path: string) => {
+  return path.split('.').reduce((acc, part) => acc && acc[part], obj) ?? 'Invalid';
+};
+
 export default function TreasuryDepositHistory() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   useWalletMonitor();
 
@@ -67,9 +71,7 @@ export default function TreasuryDepositHistory() {
         }
         const data: Transaction[] = await response.json();
         setTransactions(
-          data.sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
+          data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         );
       } catch (err) {
         setError(
@@ -86,7 +88,9 @@ export default function TreasuryDepositHistory() {
   }, []);
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => {
+      setDialogError('Failed to copy to clipboard');
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -95,6 +99,11 @@ export default function TreasuryDepositHistory() {
 
   const formatAmount = (amount: string) => {
     return (parseInt(amount) / 100000000).toFixed(8);
+  };
+
+  const handleDetailsClick = (tx: Transaction) => {
+    setSelectedTransaction(tx);
+    setDialogError(null);
   };
 
   if (error) {
@@ -127,24 +136,19 @@ export default function TreasuryDepositHistory() {
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
               >
                 <div>
-                  <div className="font-medium">
-                    + {formatAmount(tx.amount)} BSV
-                  </div>
+                  <div className="font-medium">+ {formatAmount(tx.amount)} BSV</div>
                   <div className="text-sm text-muted-foreground">
-                    Txid: {tx.txid.substring(0, 8)}... | Beef TX:{' '}
-                    {tx.beefTx.txid}...
+                    Txid: {tx.txid.substring(0, 8)}... | Beef TX: {safelyGetNestedProp(tx, 'beefTx.txid').substring(0, 8)}...
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="text-sm text-muted-foreground">
-                    {formatDate(tx.date)}
-                  </div>
+                  <div className="text-sm text-muted-foreground">{formatDate(tx.date)}</div>
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSelectedTransaction(tx)}
+                        onClick={() => handleDetailsClick(tx)}
                       >
                         Details
                       </Button>
@@ -153,6 +157,13 @@ export default function TreasuryDepositHistory() {
                       <DialogHeader>
                         <DialogTitle>Transaction Details</DialogTitle>
                       </DialogHeader>
+                      {dialogError && (
+                        <Alert variant="destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>Error</AlertTitle>
+                          <AlertDescription>{dialogError}</AlertDescription>
+                        </Alert>
+                      )}
                       <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                           <Label htmlFor="date" className="text-right">
@@ -160,11 +171,7 @@ export default function TreasuryDepositHistory() {
                           </Label>
                           <Input
                             id="date"
-                            value={
-                              selectedTransaction
-                                ? formatDate(selectedTransaction.date)
-                                : ''
-                            }
+                            value={selectedTransaction ? formatDate(selectedTransaction.date) : ''}
                             className="col-span-3"
                             readOnly
                           />
@@ -186,7 +193,7 @@ export default function TreasuryDepositHistory() {
                           </Label>
                           <Input
                             id="beefTx"
-                            value={selectedTransaction?.beefTx.txid || ''}
+                            value={safelyGetNestedProp(selectedTransaction, 'beefTx.txid')}
                             className="col-span-3"
                             readOnly
                           />
@@ -197,9 +204,7 @@ export default function TreasuryDepositHistory() {
                           </Label>
                           <Input
                             id="vout"
-                            value={
-                              selectedTransaction?.beefTx.vout.toString() || ''
-                            }
+                            value={safelyGetNestedProp(selectedTransaction, 'beefTx.vout')}
                             className="col-span-3"
                             readOnly
                           />
@@ -223,8 +228,7 @@ export default function TreasuryDepositHistory() {
                             id="amount"
                             value={
                               selectedTransaction
-                                ? formatAmount(selectedTransaction.amount) +
-                                  ' BSV'
+                                ? formatAmount(selectedTransaction.amount) + ' BSV'
                                 : ''
                             }
                             className="col-span-3"
@@ -236,9 +240,7 @@ export default function TreasuryDepositHistory() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() =>
-                            copyToClipboard(selectedTransaction?.txid || '')
-                          }
+                          onClick={() => copyToClipboard(selectedTransaction?.txid || '')}
                         >
                           <Copy className="mr-2 h-4 w-4" />
                           Copy Txid
@@ -246,11 +248,8 @@ export default function TreasuryDepositHistory() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() =>
-                            copyToClipboard(
-                              selectedTransaction?.beefTx.txid || ''
-                            )
-                          }
+                          onClick={() => copyToClipboard(safelyGetNestedProp(selectedTransaction, 'beefTx.txid'))}
+                          disabled={safelyGetNestedProp(selectedTransaction, 'beefTx.txid') === 'Invalid'}
                         >
                           <Copy className="mr-2 h-4 w-4" />
                           Copy Beef TX

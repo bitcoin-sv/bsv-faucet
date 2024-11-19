@@ -1,7 +1,16 @@
-import { PrivateKey, P2PKH, Transaction, TransactionInput } from '@bsv/sdk';
+import {
+  PrivateKey,
+  P2PKH,
+  Transaction,
+  Hash,
+  TransactionInput,
+  TransactionOutput,
+  Script
+} from '@bsv/sdk';
 import { getUTXOs, getRawTransaction, broadcastTransaction } from './regest';
-import { PrismaClient } from '@/prisma/generated/client';
+import { Prisma, PrismaClient } from '@/prisma/generated/client';
 import { currentUser } from '@clerk/nextjs/server';
+import bs58check from 'bs58check';
 
 interface UTXO {
   tx_hash: string;
@@ -9,24 +18,76 @@ interface UTXO {
   value: number;
 }
 
-interface TransactionOutput {
-  address: string;
-  satoshis: number;
+// interface TransactionOutput {
+//   address?: string
+//   satoshis?: number
+// }
+function getAddressFromLockingScript(
+  lockingScript: Script,
+  isTestnet: boolean = true
+): string {
+  try {
+    const chunks = lockingScript.chunks;
+    if (
+      chunks.length === 5 &&
+      chunks[0].op === 0x76 && // OP_DUP
+      chunks[1].op === 0xa9 && // OP_HASH160
+      chunks[2].data instanceof Uint8Array &&
+      chunks[2].data.length === 20 && // PubKeyHash length is 20 bytes
+      chunks[3].op === 0x88 && // OP_EQUALVERIFY
+      chunks[4].op === 0xac // OP_CHECKSIG
+    ) {
+      const pubKeyHash = chunks[2].data; // Already Uint8Array
+      const networkPrefix = isTestnet ? 0x6f : 0x00; // 0x6f for testnet, 0x00 for mainnet
+      const payload = Buffer.concat([
+        Buffer.from([networkPrefix]),
+        Buffer.from(pubKeyHash)
+      ]);
+      return bs58check.encode(payload);
+    }
+    return 'unknown';
+  } catch (error) {
+    console.error('Error extracting address from locking script:', error);
+    return 'unknown';
+  }
 }
 
 function transactionToObject(tx: Transaction): Record<string, any> {
   return {
+    txid: Buffer.from(tx.hash()).toString('hex'),
     version: tx.version,
     inputs: tx.inputs.map((input) => ({
-      txid: input.sourceTransaction?.hash.toString(),
+      txid: input.sourceTransaction?.hash()
+        ? Buffer.from(input.sourceTransaction.hash()).toString('hex')
+        : 'unknown',
+
       vout: input.sourceOutputIndex,
+      scriptSig: input.unlockingScript?.toASM() || 'unknown',
       sequence: input.sequence
     })),
-    outputs: tx.outputs.map((output) => ({
-      satoshis: output.satoshis,
-      lockingScript: output.lockingScript.toASM()
+    outputs: tx.outputs.map((output, index) => ({
+      voutIndex: index,
+      value: output.satoshis || 0,
+      scriptPubKey: {
+        asm: output.lockingScript?.toASM() || 'unknown',
+        hex: output.lockingScript?.toHex() || 'unknown',
+        addresses: output.lockingScript
+          ? [getAddressFromLockingScript(output.lockingScript)]
+          : []
+      }
     }))
   };
+}
+
+function mapOutputsToJson(outputs: TransactionOutput[]): Prisma.InputJsonValue {
+  return outputs.map((output, index) => ({
+    voutIndex: index,
+    address: output.lockingScript
+      ? getAddressFromLockingScript(output.lockingScript)
+      : null,
+    satoshis: output.satoshis || 0,
+    lockingScript: output.lockingScript?.toHex()
+  }));
 }
 
 const prisma = new PrismaClient();
@@ -131,22 +192,38 @@ export const createAndSendTransaction = async (
     if (!txid) {
       throw new Error('Failed to broadcast transaction');
     }
-    const user = await currentUser()
-    const userId = user?.id
+
+    const user = await currentUser();
+    const userId = user?.id;
+    const voutJson = mapOutputsToJson(tx.outputs);
     await prisma.transaction.create({
       data: {
         txid,
         rawTx,
         beefTx: transactionToObject(tx),
-        vout: outputs.map((output) => ({
-          address: toAddress,
-          satoshis: output.satoshis
-        })),
+        vout: voutJson,
         txType: 'withdraw',
         spentStatus: false,
         testnetFlag: network === 'testnet',
         amount: BigInt(amount),
         userId: userId,
+        outputs: {
+          create: tx.outputs.map((output, index) => ({
+            voutIndex: index,
+            address: getAddressFromLockingScript(output.lockingScript, network === 'testnet'),
+            amount: Number(output.satoshis || 0),
+            spentStatus: false
+          }))
+        }
+      }
+    });
+
+    await prisma.user.update({
+      where: { userId: userId },
+      data: {
+        withdrawn: {
+          increment: BigInt(amount)
+        }
       }
     });
 

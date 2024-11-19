@@ -9,35 +9,34 @@ datasource db {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  userId        String         @unique // Clerk ID
-  username      String         @unique
-  email         String         @unique
-  imageUrl      String         @default("/placeholder-user.jpg")
-  role          Role
-  password      String
-  theme         Theme          @default(light)
-  withdrawn     BigInt         @default(0)
-  paused        Boolean        @default(false)
-  createdAt     DateTime       @default(now())
-  lastActive    DateTime       @default(now())
+  id              Int             @id @default(autoincrement())
+  userId          String          @unique
+  username        String          @unique
+  email           String          @unique
+  role            Role
+  password        String
+  theme           Theme           @default(light)
+  imageUrl        String          @default("/placeholder-user.jpg")
+  createdAt       DateTime        @default(now())
+  paused          Boolean         @default(false)
+  withdrawn       BigInt          @default(0)
+  lastActive      DateTime        @default(now())
+  transactions    Transaction[]
   walletAddresses WalletAddress[]
-  transactions  Transaction[]
 }
 
 model WalletAddress {
   id        Int      @id @default(autoincrement())
   address   String   @unique
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Transaction {
   id          Int      @id @default(autoincrement())
   date        DateTime @default(now())
   txid        String   @unique
-  rawTx       Json?
   beefTx      Json
   vout        Json
   txType      String
@@ -45,22 +44,32 @@ model Transaction {
   testnetFlag Boolean  @default(true)
   amount      BigInt
   userId      String?
+  rawTx       Json?
+  outputs     Output[]
   user        User?    @relation(fields: [userId], references: [userId])
 
   @@index([userId, date])
   @@index([txid])
 }
 
-
+model Output {
+  id            Int         @id @default(autoincrement())
+  transactionId Int
+  voutIndex     Int
+  address       String
+  amount        BigInt
+  spentStatus   Boolean     @default(false)
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+}
 
 model Wallet {
-  id         Int      @id @default(autoincrement())
-  address    String   @unique
+  id         Int        @id @default(autoincrement())
+  address    String     @unique
   privateKey String
+  createdAt  DateTime   @default(now())
+  balance    BigInt     @default(0)
+  lastUsed   DateTime   @default(now())
   type       WalletType @default(master)
-  createdAt  DateTime @default(now())
-  lastUsed   DateTime @default(now())
-  balance    BigInt   @default(0)
 }
 
 enum Role {
