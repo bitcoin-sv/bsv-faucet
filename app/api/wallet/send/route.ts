@@ -50,10 +50,7 @@ export async function POST(req: Request) {
       data: { lastActive: new Date() }
     });
 
-    const remainingTime =
-      24 * 60 * 60 * 1000 - (Date.now() - last24Hours.getTime());
-
-    return NextResponse.json({ txid, remainingTime });
+    return NextResponse.json({ txid });
   } catch (error) {
     console.error('Error sending transaction:', error);
     return NextResponse.json(

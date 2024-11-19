@@ -1,19 +1,5 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { redirect } from 'next/navigation'
 
-export default function DashboardPage() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Dashboard</CardTitle>
-        <CardDescription>Dashboard items.</CardDescription>
-      </CardHeader>
-      <CardContent></CardContent>
-    </Card>
-  );
+export default function HomePage() {
+  redirect('/dashboard')
 }
