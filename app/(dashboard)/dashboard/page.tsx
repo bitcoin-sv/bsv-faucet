@@ -119,10 +119,12 @@ export default function DashboardPage() {
   const handleRequest = async () => {
     setError('');
     setSuccess('');
+    setIsLoading(true)
 
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
+      setIsLoading(false)
       return;
     }
 
@@ -143,6 +145,7 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        setIsLoading(false)
         throw new Error(errorData.error || 'Failed to send transaction');
       }
 
@@ -165,11 +168,15 @@ export default function DashboardPage() {
         const transactionsData = await transactionsResponse.json();
         setFaucetBalance(balanceData.balance);
         setTransactions(transactionsData);
+        setIsLoading(false)
+
       }
 
     } catch (err: any) {
       setError(`Failed to process request: ${err.message}`);
       console.error('Transaction error:', err);
+      setIsLoading(false)
+
     }
   };
 
