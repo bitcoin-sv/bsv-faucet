@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
-import ReCAPTCHA from 'react-google-recaptcha';
+// import ReCAPTCHA from 'react-google-recaptcha';
 import {
   Card,
   CardContent,
@@ -45,7 +45,7 @@ export default function DashboardPage() {
   const { user } = useUser();
   const [address, setAddress] = useState('');
   const [amount, setAmount] = useState('');
-  const [captchaValue, setCaptchaValue] = useState('');
+  // const [captchaValue, setCaptchaValue] = useState('');
   const [remainingTime, setRemainingTime] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
 
@@ -55,7 +55,7 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
+  // const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
   const MAX_DAILY_WITHDRAWAL = parseInt(
     process.env.NEXT_PUBLIC_MAX_DAILY_WITHDRAWAL || '100000'
   );
@@ -129,7 +129,7 @@ export default function DashboardPage() {
       parseInt(amount) > MAX_DAILY_WITHDRAWAL
     )
       return `Invalid amount (max ${MAX_DAILY_WITHDRAWAL} satoshis)`;
-    if (!captchaValue) return 'Please complete the captcha';
+    // if (!captchaValue) return 'Please complete the captcha';
     if (remainingTime > 0)
       return 'Please wait for the cooldown period to end for this address';
     return null;
@@ -196,9 +196,9 @@ export default function DashboardPage() {
     }
   };
 
-  const onCaptchaChange = (value: string | null) => {
-    setCaptchaValue(value || '');
-  };
+  // const onCaptchaChange = (value: string | null) => {
+  //  setCaptchaValue(value || '');
+  // };
 
   const formatTimeRemaining = (time: number) => {
     const hours = Math.floor(time / (60 * 60 * 1000));
@@ -240,11 +240,11 @@ export default function DashboardPage() {
               onChange={(e) => setAmount(e.target.value)}
               max={MAX_DAILY_WITHDRAWAL.toString()}
             />
-
-            <ReCAPTCHA
+            {/* <ReCAPTCHA
               sitekey={RECAPTCHA_SITE_KEY}
               onChange={onCaptchaChange}
             />
+            */}
 
             {totalWithdrawn > MAX_DAILY_WITHDRAWAL && (
               <div className="flex items-center space-x-2 text-yellow-600">
